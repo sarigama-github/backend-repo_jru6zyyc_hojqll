@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-app = FastAPI()
+from database import create_document
+from schemas import NewsletterSignup
+
+app = FastAPI(title="Empathic Success API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,11 +19,29 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Empathic Success Backend Running"}
 
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+class NewsletterRequest(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    source: Optional[str] = "website"
+
+@app.post("/api/newsletter")
+def subscribe_newsletter(payload: NewsletterRequest):
+    try:
+        signup = NewsletterSignup(
+            email=payload.email,
+            first_name=payload.first_name,
+            source=payload.source or "website",
+        )
+        inserted_id = create_document("newslettersignup", signup)
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test")
 def test_database():
